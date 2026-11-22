@@ -137,7 +137,7 @@ export function validate(files) {
       if (!isTarget(l.target)) { E.push(w + ': unknown target ' + l.target); continue; }
       const slot = l.slot || 'overlay', fit = l.fit || 'cover', z = l.z ?? 0, op = l.opacity ?? 1;
       if (!['behind', 'overlay'].includes(slot)) E.push(w + ': slot must be behind or overlay');
-      if (!['cover', 'contain', 'stretch'].includes(fit)) E.push(w + ': fit must be cover, contain or stretch');
+      if (!['cover', 'contain', 'stretch', 'tile'].includes(fit)) E.push(w + ': fit must be cover, contain, stretch or tile');
       if (!Number.isInteger(z) || z < 0 || z > 100) E.push(w + ': z must be a whole number from 0 to 100');
       if (typeof op !== 'number' || op < 0 || op > 1) E.push(w + ': opacity must be from 0 to 1');
       if (slots.has(l.target + slot)) E.push(w + ': only one layer per target and slot is supported in this version');
@@ -238,7 +238,8 @@ async function apply(plan, blobs, source) {
   const css = ['[data-coffeo-on]{isolation:isolate}', '[data-coffeo-pos]{position:relative}'];
   const sel = t => `[data-coffeo~="${t}"]`;
   for (const l of plan.layers) {
-    css.push(`${sel(l.target)}${l.slot === 'behind' ? '::before' : '::after'}{content:"";position:absolute;inset:0;pointer-events:none;z-index:${l.slot === 'behind' ? -1 : l.z};opacity:${l.opacity};background:url("${url(l.src)}") center/${l.fit === 'stretch' ? '100% 100%' : l.fit} no-repeat}`);
+    const pos = l.fit === 'tile' ? '0 0/auto repeat' : `center/${l.fit === 'stretch' ? '100% 100%' : l.fit} no-repeat`;
+    css.push(`${sel(l.target)}${l.slot === 'behind' ? '::before' : '::after'}{content:"";position:absolute;inset:0;pointer-events:none;z-index:${l.slot === 'behind' ? -1 : l.z};opacity:${l.opacity};background:url("${url(l.src)}") ${pos}}`);
   }
   for (const u of plan.ui) {
     const d = [u.set.opacity != null && `opacity:${u.set.opacity}`, u.set.borderRadius && `border-radius:${u.set.borderRadius}`].filter(Boolean).join(';');
@@ -259,7 +260,7 @@ async function apply(plan, blobs, source) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css.join('\n'));
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-  live = { sheet, urls: [...urls.values()], fonts, marks };
+  live = { sheet, urls: [...urls.values()], fonts, marks, name: plan.root.name, source };
   const used = usedTargets(plan);
   const r = { ok: true, source, name: plan.root.name, version: plan.root.version, matched: used.filter(t => matched.has(t)), missing: used.filter(t => !matched.has(t)), warnings };
   emit(r); return r;
@@ -306,6 +307,7 @@ async function show() {
 }
 export const Coffeo = {
   get policy() { return cfg.policy; },
+  get current() { return live && { name: live.name, source: live.source }; },
   async import(src) {
     if (cfg.policy === 'locked') throw new Error('This site uses a theme chosen by its owner');
     const files = src instanceof Blob ? await readZip(src) : await readFolder(src);
