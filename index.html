@@ -30,7 +30,7 @@ label.f input{display:none}pre{grid-column:1/-1;white-space:pre-wrap;background:
 <script type="module">
 const log=t=>document.getElementById('log').textContent=t;
 addEventListener('coffeo-report',e=>{const r=e.detail;
- log(!r.ok?'Problem:\n- '+r.errors.join('\n- '):'Applied: '+(r.name?r.name+' '+r.version:'nothing')+' ('+r.source+')\nTargets found: '+(r.matched.join(', ')||'none')+'\nTargets missing: '+(r.missing.join(', ')||'none')+(r.warnings&&r.warnings.length?'\nNotes: '+r.warnings.join('; '):''))});
+ const c=Coffeo.current;log(!r.ok?'Problem:\n- '+r.errors.join('\n- ')+'\nNothing was changed. '+(c?'Still showing: '+c.name+' ('+(c.source==='visitor'?'your theme':'the site default')+')':'No theme is active.'):(r.name?'Showing '+(r.source==='visitor'?'your theme':'the site default theme')+': '+r.name+' '+r.version:'No theme is active')+'\nTargets found: '+(r.matched.join(', ')||'none')+'\nTargets missing: '+(r.missing.join(', ')||'none')+(r.warnings&&r.warnings.length?'\nNotes: '+r.warnings.join('; '):''))});
 if(Coffeo.policy==='locked'){document.getElementById('tools').innerHTML='<span>The site owner chose this theme. Visitors cannot change it.</span>'}
 else{const go=async f=>{try{await Coffeo.import(f)}catch(e){}};
  document.getElementById('zip').onchange=e=>e.target.files[0]&&go(e.target.files[0]);
