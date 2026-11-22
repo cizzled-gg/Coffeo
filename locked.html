@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coffeo reference site (locked)</title>
+<style>
+:root{--bg:#12161b;--fg:#e8ecf1;--mut:#9aa6b2;--card:#1c232b;--ac:#6ee7b7;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#f3f5f7;--fg:#161a1f;--mut:#55616d;--card:#fff;--ac:#0a7a5a;color-scheme:light}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+#topnav{display:flex;gap:16px;align-items:center;padding:14px 18px;background:var(--card)}
+#topnav b{font-size:18px}#topnav span{color:var(--mut)}
+main{display:grid;gap:14px;padding:14px;max-width:960px;margin:auto;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card,.chat-panel{background:var(--card);padding:14px;border-radius:4px;min-height:120px}
+.chat-panel{grid-column:1/-1;min-height:160px}
+h1,h2{margin:0 0 6px}p{margin:4px 0;color:var(--mut)}
+.tools{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,label.f{font:inherit;padding:9px 13px;border-radius:8px;border:1px solid #8886;background:var(--card);color:var(--fg);cursor:pointer}
+label.f input{display:none}pre{grid-column:1/-1;white-space:pre-wrap;background:var(--card);padding:10px;border-radius:8px;font-size:13px;margin:0}
+</style></head><body>
+<header id="topnav"><b>Coffeo reference site</b><span>mode: locked</span></header>
+<main>
+<section class="tools" id="tools"><label class="f">Choose Style Set ZIP<input type="file" id="zip" accept=".zip"></label>
+<label class="f">Choose folder<input type="file" id="dir" webkitdirectory multiple></label><button id="reset">Remove my theme</button></section>
+<pre id="log">Waiting...</pre>
+<section class="card"><h2>Card one</h2><p>Plain text inside a card. Layers sit behind or over it, text stays readable.</p></section>
+<section class="card"><h2>Card two</h2><p>Another card to show the theme applies to every matching element.</p></section>
+<section class="chat-panel"><h2>Chat panel</h2><p>Hello! This panel is the chat box target.</p><p>Add <code>?coffeo=off</code> to the address to switch Coffeo off.</p></section>
+</main>
+<script type="module" src="coffeo.js" data-policy="locked" data-style-set="sample-style-set.zip"
+ data-targets="ui.topbar=#topnav; ui.chatbox=.chat-panel; ui.card=.card; text.heading=h1,h2"></script>
+<script type="module">
+const log=t=>document.getElementById('log').textContent=t;
+addEventListener('coffeo-report',e=>{const r=e.detail;
+ log(!r.ok?'Problem:\n- '+r.errors.join('\n- '):'Applied: '+(r.name?r.name+' '+r.version:'nothing')+' ('+r.source+')\nTargets found: '+(r.matched.join(', ')||'none')+'\nTargets missing: '+(r.missing.join(', ')||'none')+(r.warnings&&r.warnings.length?'\nNotes: '+r.warnings.join('; '):''))});
+if(Coffeo.policy==='locked'){document.getElementById('tools').innerHTML='<span>The site owner chose this theme. Visitors cannot change it.</span>'}
+else{const go=async f=>{try{await Coffeo.import(f)}catch(e){}};
+ document.getElementById('zip').onchange=e=>e.target.files[0]&&go(e.target.files[0]);
+ document.getElementById('dir').onchange=e=>e.target.files.length&&go(e.target.files);
+ document.getElementById('reset').onclick=()=>Coffeo.reset()}
+</script></body></html>

@@ -1,182 +1,39 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Coffeo Lag Lab</title>
+<title>Coffeo reference site (visitor)</title>
 <style>
-:root{--bg:#101316;--fg:#e9ecef;--mut:#98a2ad;--ac:#6ee7b7;--card:#1a1f24;color-scheme:dark}
-@media (prefers-color-scheme:light){:root{--bg:#f4f5f7;--fg:#16191d;--mut:#55606b;--ac:#08785a;--card:#fff;color-scheme:light}}
-*{box-sizing:border-box}
-body{margin:0;padding:12px;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif;max-width:760px}
-h1{font-size:20px;margin:4px 0 2px}h2{font-size:15px;margin:0 0 6px}
-p{margin:4px 0;color:var(--mut)}
-.card{background:var(--card);border-radius:10px;padding:10px;margin:10px 0}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
-button,select,input[type=number]{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid #8885;background:var(--card);color:var(--fg)}
-button.p{background:var(--ac);color:#04251b;border:0;font-weight:650}
-label.f{display:inline-block;padding:8px 12px;border-radius:8px;border:1px solid #8885;cursor:pointer}
-label.f input{display:none}
-#stage{position:relative;height:220px;overflow:hidden;border-radius:10px;background:#1b2a3a;isolation:isolate;contain:paint}
-#stage .txt{position:relative;z-index:5;padding:12px;font-size:17px;color:#fff}
-.lay{position:absolute;inset:0;pointer-events:none;will-change:transform,opacity}
-@keyframes mv{from{transform:translateX(-35%)}to{transform:translateX(35%)}}
-@keyframes bp{to{background-position:200% 0}}
-@keyframes ss{to{transform:translateX(-1024px)}}
-.st{background:linear-gradient(90deg,#0000,#6ee7b755,#0000);opacity:.5}
-.tf{background:linear-gradient(90deg,#0000,#6ee7b799,#0000);animation:mv 3s linear infinite alternate}
-.bl{mix-blend-mode:screen}
-.pt{background:repeating-linear-gradient(45deg,#f0a8,#0ff8 12px,#0000 24px);background-size:200% 100%;animation:bp 4s linear infinite;opacity:.5}
-.tc{position:relative;z-index:6;display:inline-block;margin:0 10px;font-size:26px;font-weight:800;color:#0000;-webkit-background-clip:text;background-clip:text;background-image:linear-gradient(90deg,#fa0,#0fa,#a0f,#fa0);background-size:200% 100%;animation:bp 3s linear infinite}
-table{border-collapse:collapse;width:100%;font-size:12px}
-td,th{padding:4px 6px;border-bottom:1px solid #8883;text-align:right;white-space:nowrap}
-td:first-child,th:first-child{text-align:left}
-.sc{overflow-x:auto}
-textarea{width:100%;height:150px;font:11px monospace;background:var(--card);color:var(--fg);border:1px solid #8885;border-radius:8px}
-#bar{height:6px;background:#8883;border-radius:3px;overflow:hidden}#bar i{display:block;height:100%;width:0;background:var(--ac)}
+:root{--bg:#12161b;--fg:#e8ecf1;--mut:#9aa6b2;--card:#1c232b;--ac:#6ee7b7;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#f3f5f7;--fg:#161a1f;--mut:#55616d;--card:#fff;--ac:#0a7a5a;color-scheme:light}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+#topnav{display:flex;gap:16px;align-items:center;padding:14px 18px;background:var(--card)}
+#topnav b{font-size:18px}#topnav span{color:var(--mut)}
+main{display:grid;gap:14px;padding:14px;max-width:960px;margin:auto;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card,.chat-panel{background:var(--card);padding:14px;border-radius:4px;min-height:120px}
+.chat-panel{grid-column:1/-1;min-height:160px}
+h1,h2{margin:0 0 6px}p{margin:4px 0;color:var(--mut)}
+.tools{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,label.f{font:inherit;padding:9px 13px;border-radius:8px;border:1px solid #8886;background:var(--card);color:var(--fg);cursor:pointer}
+label.f input{display:none}pre{grid-column:1/-1;white-space:pre-wrap;background:var(--card);padding:10px;border-radius:8px;font-size:13px;margin:0}
 </style></head><body>
-<h1>Coffeo Lag Lab</h1>
-<p>Stage 0 measurement page. Open it on the Android 11 phone, keep the screen on, and do not touch the screen during a run. Results are collected below and can be copied or downloaded as JSON.</p>
-
-<div class="card"><h2>Preview stage</h2>
-<div id="stage"><div class="txt">Coffeo test panel. Text stays on top while layers animate underneath. Page content like this must stay readable and responsive.</div></div>
-<div id="bar"><i></i></div><p id="status">Idle.</p></div>
-
-<div class="card"><h2>Run</h2>
-<div class="row"><button class="p" id="suite">Run full suite</button>
-<span>Seconds per run <input type="number" id="secs" value="8" min="3" max="30" style="width:70px"></span></div>
-<div class="row"><select id="kind">
-<option value="base">control (no layers)</option><option value="static">static image layers</option>
-<option value="transform">transform animation</option><option value="blend">transform + blend mode</option>
-<option value="sprite">sprite sheet (steps)</option><option value="paint">background-position (anti-pattern)</option>
-<option value="textclip">animated text fill (background-clip)</option><option value="video">video layers</option>
-<option value="img">animated image layers (your file)</option></select>
-<span>Layers <input type="number" id="n" value="4" min="1" max="16" style="width:70px"></span>
-<button id="one">Run one</button></div>
-<div class="row"><label class="f">Load your video<input type="file" id="vf" accept="video/*"></label>
-<label class="f">Load animated image (APNG/WebP/GIF)<input type="file" id="af" accept="image/*"></label></div>
-<p id="assets">Video: none (a generated 3-second clip is used if none is loaded). Animated image: none.</p></div>
-
-<div class="card"><h2>Device checks</h2>
-<div class="row"><button id="dev">Collect device info</button><button id="opfs">Storage speed test</button>
-<label class="f">Folder picker test<input type="file" id="ff" webkitdirectory multiple></label></div></div>
-
-<div class="card"><h2>Results</h2><div class="sc"><table id="tb"><thead><tr><th>run</th><th>layers</th><th>fps</th><th>p50</th><th>p95</th><th>p99</th><th>max</th><th>jank</th><th>long</th><th>heap MB</th></tr></thead><tbody></tbody></table></div>
-<p>Times are milliseconds per frame. Jank = frames over 25 ms. Long = frames over 50 ms. Heap is JavaScript heap only; GPU memory cannot be read from a web page.</p>
-<div class="row"><button id="copy" class="p">Copy JSON</button><button id="dl">Download JSON</button><button id="clr">Clear</button></div>
-<textarea id="out" readonly></textarea></div>
-
-<script>
-const $=id=>document.getElementById(id),stage=$('stage'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const R={app:'coffeo-lag-lab',version:1,started:new Date().toISOString(),device:null,runs:[],checks:{}};
-let videoURL=null,imgURL=null,spriteURL=null,busy=false;
-const q=a=>{a=[...a].sort((x,y)=>x-y);return p=>a.length?+a[Math.min(a.length-1,Math.floor(p*a.length))].toFixed(1):0};
-const mb=()=>performance.memory?+(performance.memory.usedJSHeapSize/1048576).toFixed(1):null;
-function save(){$('out').value=JSON.stringify(R,null,1);try{localStorage.setItem('coffeoLab',$('out').value)}catch(e){}}
-function say(t){$('status').textContent=t}
-
-async function devInfo(){
- const est=await (navigator.storage?.estimate?.()||Promise.resolve({}));
- const v=document.createElement('video');
- R.device={ua:navigator.userAgent,cores:navigator.hardwareConcurrency,memGB:navigator.deviceMemory,dpr:devicePixelRatio,
-  screen:[screen.width,screen.height],viewport:[innerWidth,innerHeight],saveData:navigator.connection?.saveData,
-  reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
-  storageQuotaMB:est.quota&&Math.round(est.quota/1048576),storageUsedMB:est.usage&&Math.round(est.usage/1048576),
-  features:{opfs:!!navigator.storage?.getDirectory,adoptedStyleSheets:'adoptedStyleSheets' in document,waapi:!!Element.prototype.animate,
-   longAnimationFrames:!!PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame'),customHighlight:!!(window.CSS&&CSS.highlights),
-   showDirectoryPicker:!!window.showDirectoryPicker,videoFrameCallback:'requestVideoFrameCallback' in HTMLVideoElement.prototype,
-   webmVp9:v.canPlayType('video/webm; codecs=vp9'),webmVp8:v.canPlayType('video/webm; codecs=vp8'),mp4Hevc:v.canPlayType('video/mp4; codecs=hvc1'),
-   mediaRecorder:!!window.MediaRecorder}};
- save();say('Device info collected.')
-}
-
-function sprite(){
- if(spriteURL)return spriteURL;
- const c=document.createElement('canvas');c.width=1024;c.height=128;const x=c.getContext('2d');
- for(let i=0;i<8;i++){const cx=i*128+64+Math.cos(i/8*6.28)*30,cy=64+Math.sin(i/8*6.28)*30;
-  const g=x.createRadialGradient(cx,cy,2,cx,cy,40);g.addColorStop(0,'#fff');g.addColorStop(1,'#6ee7b700');x.fillStyle=g;x.fillRect(i*128,0,128,128)}
- return spriteURL=c.toDataURL()
-}
-async function genVideo(){
- if(videoURL)return videoURL;
- if(!window.MediaRecorder)return null;
- const c=document.createElement('canvas');c.width=480;c.height=270;const x=c.getContext('2d');
- const rec=new MediaRecorder(c.captureStream(30),{mimeType:MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm'});
- const ch=[];rec.ondataavailable=e=>ch.push(e.data);const t0=performance.now();let on=true;
- (function d(){const t=(performance.now()-t0)/1000;x.fillStyle='#000';x.fillRect(0,0,480,270);
-  for(let i=0;i<6;i++){x.fillStyle=`hsl(${(t*90+i*60)%360} 90% 60%)`;x.beginPath();x.arc(240+Math.cos(t*2+i)*160,135+Math.sin(t*3+i)*90,40,0,6.28);x.fill()}
-  if(on)requestAnimationFrame(d)})();
- rec.start();await sleep(3000);rec.stop();on=false;await new Promise(r=>rec.onstop=r);
- return videoURL=URL.createObjectURL(new Blob(ch,{type:'video/webm'}))
-}
-function mkVideo(src){
- const v=document.createElement('video');v.src=src;v.loop=true;v.muted=true;v.playsInline=true;
- v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6;mix-blend-mode:screen;pointer-events:none';
- v.onloadedmetadata=()=>{if(v.duration===Infinity){v.currentTime=1e101;v.ontimeupdate=()=>{v.ontimeupdate=null;v.currentTime=0;v.play()}}};
- stage.appendChild(v);v.play().catch(()=>{});return v
-}
-
-async function build(kind,n){
- stage.querySelectorAll('.lay,video,.tc,.ttl').forEach(e=>e.remove());
- const add=(cls,css)=>{const d=document.createElement('div');d.className='lay '+cls;if(css)d.style.cssText=css;stage.appendChild(d);return d};
- const vids=[];
- for(let i=0;i<n;i++){
-  if(kind=='static')add('st',`transform:translateX(${i*8}px)`);
-  else if(kind=='transform')add('tf',`animation-delay:-${i*.4}s`);
-  else if(kind=='blend')add('tf bl',`animation-delay:-${i*.4}s`);
-  else if(kind=='paint')add('pt');
-  else if(kind=='sprite'){const w=add('',`inset:auto;left:${(i*37)%300}px;top:${(i*23)%90}px;width:128px;height:128px;overflow:hidden;will-change:auto`);
-   const s=document.createElement('div');s.style.cssText=`width:1024px;height:128px;background:url(${sprite()});animation:ss .8s steps(8) infinite;will-change:transform`;w.appendChild(s)}
-  else if(kind=='textclip'){const h=document.createElement('span');h.className='tc ttl';h.textContent='Coffeo '+(i+1);stage.appendChild(h)}
-  else if(kind=='img'&&imgURL){const m=document.createElement('img');m.src=imgURL;m.className='lay';m.style.cssText='width:100%;height:100%;object-fit:cover;opacity:.6';stage.appendChild(m)}
-  else if(kind=='video'){const s=videoURL||await genVideo();if(s)vids.push(mkVideo(s))}
- }
- return vids
-}
-
-async function run(kind,n,secs){
- if(busy)return;busy=true;
- try{
-  if(!R.device)await devInfo();
-  say(`Preparing ${kind} x${n}...`);
-  const vids=await build(kind,n);await sleep(800);
-  const d=[],gaps=[];let last=0,alive=true,loaf=[];
-  let po;try{po=new PerformanceObserver(l=>l.getEntries().forEach(e=>loaf.push(e.duration)));
-   po.observe({type:PerformanceObserver.supportedEntryTypes.includes('long-animation-frame')?'long-animation-frame':'longtask',buffered:false})}catch(e){}
-  if(vids[0]&&vids[0].requestVideoFrameCallback){let lt=0;const cb=(now)=>{if(lt)gaps.push(now-lt);lt=now;if(alive)vids[0].requestVideoFrameCallback(cb)};vids[0].requestVideoFrameCallback(cb)}
-  const h0=mb(),t0=performance.now();
-  await new Promise(res=>{(function f(t){if(last)d.push(t-last);last=t;
-   const el=(performance.now()-t0)/1000;$('bar').firstChild.style.width=Math.min(100,el/secs*100)+'%';
-   if(el<secs)requestAnimationFrame(f);else res()})(performance.now());requestAnimationFrame(function f(t){})});
-  alive=false;po&&po.disconnect();
-  const h1=mb(),P=q(d),total=(performance.now()-t0)/1000;
-  const r={kind,layers:n,secs:+total.toFixed(1),frames:d.length,fps:+(d.length/total).toFixed(1),p50:P(.5),p95:P(.95),p99:P(.99),max:+Math.max(...d).toFixed(1),
-   jank:d.filter(x=>x>25).length,over50:d.filter(x=>x>50).length,longEntries:loaf.length,longMaxMs:loaf.length?+Math.max(...loaf).toFixed(0):0,heapStartMB:h0,heapEndMB:h1};
-  if(vids[0]){const qv=vids[0].getVideoPlaybackQuality?.();r.video={dropped:qv?.droppedVideoFrames,total:qv?.totalVideoFrames,duration:vids[0].duration,
-   frameGapMaxMs:gaps.length?+Math.max(...gaps).toFixed(0):null,gapsOver100ms:gaps.filter(x=>x>100).length}}
-  R.runs.push(r);row(r);save();
-  stage.querySelectorAll('.lay,video,.tc').forEach(e=>e.remove());
- }finally{busy=false;$('bar').firstChild.style.width='0';say('Done.')}
-}
-function row(r){const t=document.createElement('tr');
- t.innerHTML=`<td>${r.kind}</td><td>${r.layers}</td><td>${r.fps}</td><td>${r.p50}</td><td>${r.p95}</td><td>${r.p99}</td><td>${r.max}</td><td>${r.jank}</td><td>${r.over50}</td><td>${r.heapEndMB??'-'}</td>`;
- $('tb').tBodies[0].appendChild(t)}
-
-$('suite').onclick=async()=>{const s=+$('secs').value;
- const plan=[['base',0],['static',4],['transform',4],['transform',8],['blend',4],['sprite',4],['paint',4],['textclip',3],['video',1],['video',2]];
- if(imgURL)plan.push(['img',1],['img',2]);
- for(const [k,n] of plan){await run(k,n,s)}say('Suite finished. Copy or download the results.')};
-$('one').onclick=()=>run($('kind').value,+$('n').value,+$('secs').value);
-$('dev').onclick=devInfo;
-$('vf').onchange=e=>{const f=e.target.files[0];if(f){videoURL=URL.createObjectURL(f);R.checks.userVideo={name:f.name,sizeMB:+(f.size/1048576).toFixed(1),type:f.type};save();$('assets').textContent=`Video loaded: ${f.name}. Use video layers to test it.`}};
-$('af').onchange=e=>{const f=e.target.files[0];if(f){imgURL=URL.createObjectURL(f);R.checks.userImage={name:f.name,sizeMB:+(f.size/1048576).toFixed(1),type:f.type};save();$('assets').textContent+=` Animated image loaded: ${f.name}.`}};
-$('ff').onchange=e=>{const fs=[...e.target.files];R.checks.folderPicker={filesReturned:fs.length,hasRelativePaths:!!(fs[0]&&fs[0].webkitRelativePath),firstPath:fs[0]&&fs[0].webkitRelativePath};save();say(`Folder picker returned ${fs.length} files.`)};
-$('opfs').onclick=async()=>{const r={};say('Writing 32 MB to browser storage...');
- try{const root=await navigator.storage.getDirectory(),fh=await root.getFileHandle('lab.bin',{create:true}),w=await fh.createWritable(),c=new Uint8Array(1<<20).fill(7);
-  let t=performance.now();for(let i=0;i<32;i++)await w.write(c);await w.close();r.writeMs=Math.round(performance.now()-t);
-  const f=await fh.getFile();r.sizeMB=f.size/1048576;t=performance.now();const rd=f.stream().getReader();for(;;){const x=await rd.read();if(x.done)break}
-  r.readMs=Math.round(performance.now()-t);await root.removeEntry('lab.bin')}catch(e){r.error=String(e)}
- R.checks.storage=r;save();say('Storage test: '+JSON.stringify(r))};
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('out').value);say('Copied.')}catch(e){$('out').select();document.execCommand('copy');say('Copied (fallback).')}};
-$('dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('out').value],{type:'application/json'}));a.download='coffeo-lag-lab-'+Date.now()+'.json';a.click()};
-$('clr').onclick=()=>{R.runs=[];R.checks={};$('tb').tBodies[0].innerHTML='';save()};
-devInfo();
+<header id="topnav"><b>Coffeo reference site</b><span>mode: visitor</span></header>
+<main>
+<section class="tools" id="tools"><label class="f">Choose Style Set ZIP<input type="file" id="zip" accept=".zip"></label>
+<label class="f">Choose folder<input type="file" id="dir" webkitdirectory multiple></label><button id="reset">Remove my theme</button></section>
+<pre id="log">Waiting...</pre>
+<section class="card"><h2>Card one</h2><p>Plain text inside a card. Layers sit behind or over it, text stays readable.</p></section>
+<section class="card"><h2>Card two</h2><p>Another card to show the theme applies to every matching element.</p></section>
+<section class="chat-panel"><h2>Chat panel</h2><p>Hello! This panel is the chat box target.</p><p>Add <code>?coffeo=off</code> to the address to switch Coffeo off.</p></section>
+</main>
+<script type="module" src="coffeo.js" data-policy="visitor" data-style-set="sample-style-set.zip"
+ data-targets="ui.topbar=#topnav; ui.chatbox=.chat-panel; ui.card=.card; text.heading=h1,h2"></script>
+<script type="module">
+const log=t=>document.getElementById('log').textContent=t;
+addEventListener('coffeo-report',e=>{const r=e.detail;
+ log(!r.ok?'Problem:\n- '+r.errors.join('\n- '):'Applied: '+(r.name?r.name+' '+r.version:'nothing')+' ('+r.source+')\nTargets found: '+(r.matched.join(', ')||'none')+'\nTargets missing: '+(r.missing.join(', ')||'none')+(r.warnings&&r.warnings.length?'\nNotes: '+r.warnings.join('; '):''))});
+if(Coffeo.policy==='locked'){document.getElementById('tools').innerHTML='<span>The site owner chose this theme. Visitors cannot change it.</span>'}
+else{const go=async f=>{try{await Coffeo.import(f)}catch(e){}};
+ document.getElementById('zip').onchange=e=>e.target.files[0]&&go(e.target.files[0]);
+ document.getElementById('dir').onchange=e=>e.target.files.length&&go(e.target.files);
+ document.getElementById('reset').onclick=()=>Coffeo.reset()}
 </script></body></html>
