@@ -1,7 +1,8 @@
-// Coffeo engine 1.0.0-alpha.2 (step 1)
+// Coffeo engine 1.0.0-alpha.3 (step 2a: adds video layers)
 // Does: read ZIP/folder, validate (spec 0.1), store locally (OPFS), apply fonts + static page layers + Tier A UI,
 // site map from script attributes, host policy (visitor | locked). Not yet: worker import, video, audio, interactions, text effects.
-const VERSION = '1.0.0-alpha.2';
+const VERSION = '1.0.0-alpha.3';
+const MAX_VIDEOS = 1; // device tier 1 limit; the Governor will raise or lower this later
 const L = { zip: 100 << 20, total: 200 << 20, entry: 50 << 20, count: 300, json: 256 << 10 };
 const KNOWN = ['page.background', 'page.foreground', 'ui.topbar', 'ui.ribbon', 'ui.bottombar', 'ui.panel', 'ui.chatbox', 'ui.card', 'ui.button', 'ui.input', 'text.heading', 'text.body', 'text.link', 'text.caption'];
 export const isTarget = t => typeof t === 'string' && (/^x\.[a-z0-9-]+\.[a-z0-9-]+$/.test(t) || KNOWN.includes(t.split(':')[0]) && /^[a-z.-]+(:[a-z0-9-]+)?$/.test(t));
@@ -105,7 +106,9 @@ export async function readFolder(fileList) {
 const sniff = u => u.length < 12 ? null : u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47 ? 'image'
   : u[0] === 0xff && u[1] === 0xd8 && u[2] === 0xff ? 'image'
   : u[0] === 0x52 && u[1] === 0x49 && u[2] === 0x46 && u[3] === 0x46 && u[8] === 0x57 && u[9] === 0x45 ? 'image'
-  : u[0] === 0x77 && u[1] === 0x4f && u[2] === 0x46 && u[3] === 0x32 ? 'woff2' : null;
+  : u[0] === 0x77 && u[1] === 0x4f && u[2] === 0x46 && u[3] === 0x32 ? 'woff2'
+  : u[0] === 0x1a && u[1] === 0x45 && u[2] === 0xdf && u[3] === 0xa3 ? 'video'
+  : u[4] === 0x66 && u[5] === 0x74 && u[6] === 0x79 && u[7] === 0x70 ? 'video' : null;
 
 export function validate(files) {
   const E = [], W = [], used = new Set();
@@ -117,7 +120,7 @@ export function validate(files) {
   };
   const asset = (p, kind, where) => {
     if (!safePath(p) || !files.has(p)) { E.push(where + ': file not found: ' + p); return false; }
-    if (sniff(files.get(p)) !== kind) { E.push(where + ': ' + p + ' is not a valid ' + (kind === 'image' ? 'PNG, JPEG or WebP image' : 'WOFF2 font')); return false; }
+    if (sniff(files.get(p)) !== kind) { E.push(where + ': ' + p + ' is not a valid ' + ({ image: 'PNG, JPEG or WebP image', woff2: 'WOFF2 font', video: 'WebM or MP4 video' }[kind])); return false; }
     used.add(p); return true;
   };
   const root = json('coffeo.json');
@@ -143,8 +146,21 @@ export function validate(files) {
       if (typeof op !== 'number' || op < 0 || op > 1) E.push(w + ': opacity must be from 0 to 1');
       if (slots.has(l.target + slot)) E.push(w + ': only one layer per target and slot is supported in this version');
       slots.add(l.target + slot);
-      if (!l.media || l.media.type !== 'image') { E.push(w + ': only image media is supported in this version'); continue; }
-      if (asset(l.media.src, 'image', w)) plan.layers.push({ id: l.id, target: l.target, slot, z, fit, opacity: op, src: l.media.src });
+      if (!l.media || !['image', 'video'].includes(l.media.type)) { E.push(w + ': media type must be image or video'); continue; }
+      if (l.media.type === 'image') {
+        if (asset(l.media.src, 'image', w)) plan.layers.push({ id: l.id, target: l.target, slot, z, fit, opacity: op, src: l.media.src });
+        continue;
+      }
+      if (fit === 'tile') E.push(w + ': tile is only for images');
+      const srcs = [];
+      for (const x of Array.isArray(l.media.sources) ? l.media.sources : []) {
+        if (typeof x.type !== 'string' || !/^video\/(webm|mp4)(; codecs=[\w.,\- ]{1,40})?$/.test(x.type)) { E.push(w + ': video source type must be video/webm or video/mp4'); continue; }
+        if (asset(x.src, 'video', w)) srcs.push({ src: x.src, type: x.type });
+      }
+      if (!srcs.length) { E.push(w + ': a video layer needs at least one valid source'); continue; }
+      let poster = null;
+      if (l.media.poster != null && asset(l.media.poster, 'image', w)) poster = l.media.poster;
+      plan.layers.push({ id: l.id, target: l.target, slot, z, fit, opacity: op, video: { sources: srcs, poster } });
     }
   }
   const ui = json('ui/manifest.json');
@@ -221,6 +237,7 @@ function mark(map) {
 
 export function remove() {
   if (!live) return;
+  live.dispose.forEach(f => f());
   document.adoptedStyleSheets = document.adoptedStyleSheets.filter(s => s !== live.sheet);
   live.urls.forEach(u => URL.revokeObjectURL(u));
   live.fonts.forEach(f => document.fonts.delete(f));
@@ -239,6 +256,7 @@ async function apply(plan, blobs, source, extra = []) {
   const css = ['[data-coffeo-on]{isolation:isolate}', '[data-coffeo-pos]{position:relative}'];
   const sel = t => `[data-coffeo~="${t}"]`;
   for (const l of plan.layers) {
+    if (l.video) continue;
     const pos = l.fit === 'tile' ? '0 0/auto repeat' : `center/${l.fit === 'stretch' ? '100% 100%' : l.fit} no-repeat`;
     css.push(`${sel(l.target)}${l.slot === 'behind' ? '::before' : '::after'}{content:"";position:absolute;inset:0;pointer-events:none;z-index:${l.slot === 'behind' ? -1 : l.z};opacity:${l.opacity};background:url("${url(l.src)}") ${pos}}`);
   }
@@ -258,10 +276,43 @@ async function apply(plan, blobs, source, extra = []) {
     const f = plan.fonts.families.find(x => x.id === id);
     css.push(`${sel(t)}[data-coffeo-on]{font-family:"${f.name}",${f.fallback.join(',') || 'sans-serif'}}`);
   }
+  const dispose = [];
+  let videos = 0;
+  for (const l of plan.layers.filter(x => x.video)) {
+    const host = document.querySelector(sel(l.target));
+    if (!host) continue;
+    const slotEl = host.querySelector(`:scope > [data-coffeo-slot="${l.slot}"]`);
+    const box = slotEl || document.createElement('div');
+    if (!slotEl) {
+      box.setAttribute('data-coffeo-layer', '');
+      box.style.cssText = `position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:${l.slot === 'behind' ? -1 : l.z};opacity:${l.opacity}`;
+      l.slot === 'behind' ? host.prepend(box) : host.append(box);
+      dispose.push(() => box.remove());
+    }
+    const still = l.video.poster ? url(l.video.poster) : null, reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const v = document.createElement('video'), src = l.video.sources.find(x => v.canPlayType(x.type));
+    if (!src || reduced || videos >= MAX_VIDEOS) {
+      if (still) { const im = document.createElement('div'); im.style.cssText = `position:absolute;inset:0;background:url("${still}") center/${l.fit === 'stretch' ? '100% 100%' : l.fit} no-repeat`; box.append(im); dispose.push(() => im.remove()); }
+      warnings.push('Video layer ' + l.id + ' is shown as a still image' + (reduced ? ' (reduced motion is on)' : !src ? ' (this browser cannot play its formats)' : ' (this device tier allows ' + MAX_VIDEOS + ' video at a time)'));
+      continue;
+    }
+    videos++;
+    v.muted = v.loop = v.playsInline = true; v.preload = 'auto'; v.tabIndex = -1; v.setAttribute('aria-hidden', 'true');
+    if (still) v.poster = still;
+    v.style.cssText = `display:block;width:100%;height:100%;object-fit:${l.fit === 'stretch' ? 'fill' : l.fit}`;
+    const b = blobs.get(src.src), vurl = URL.createObjectURL(b.slice(0, b.size, src.type.split(';')[0]));
+    urls.set('v:' + l.id, vurl);
+    v.src = vurl; box.append(v);
+    let seen = true;
+    const sync = () => { seen && !document.hidden ? v.play().catch(() => {}) : v.pause(); };
+    const io = new IntersectionObserver(es => { seen = es[es.length - 1].isIntersecting; sync(); });
+    io.observe(host); document.addEventListener('visibilitychange', sync);
+    dispose.push(() => { io.disconnect(); document.removeEventListener('visibilitychange', sync); v.pause(); v.removeAttribute('src'); v.load(); v.remove(); });
+  }
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css.join('\n'));
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-  live = { sheet, urls: [...urls.values()], fonts, marks, name: plan.root.name, source };
+  live = { sheet, urls: [...urls.values()], fonts, marks, dispose, name: plan.root.name, source };
   const used = usedTargets(plan);
   const r = { ok: true, source, name: plan.root.name, version: plan.root.version, matched: used.filter(t => matched.has(t)), missing: used.filter(t => !matched.has(t)), warnings };
   emit(r); return r;
